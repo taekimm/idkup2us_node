@@ -1,0 +1,28 @@
+#container {
+    display:inline-flex;
+    width: 100vw;
+    height: 100vh;
+}
+
+#googleMap {
+    width: 75%;
+    height: 100%;
+}
+
+#sidebar {
+    display: table;
+    width: 25%;
+    height: 100%;
+    margin: auto;
+}
+
+#sidebarInputs {
+    display: table-cell;
+    vertical-align: middle;
+    padding-left: 5%
+}
+
+#infowindowImage {
+    max-width: 450px;
+    max-height: 400px
+}

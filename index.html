@@ -4,30 +4,82 @@
 <head>
   <meta charset="UTF-8">
   <title>title</title>
+  <link rel="stylesheet" type="text/css" href="/styles.css" />
 </head>
 
 <body>
   <div id='container'>
-    <div id='googleMap' style="height:500px; width:500px">
+    <div id='googleMap'>
     </div>
     <div id='sidebar'>
-      <div>
-        <label>Select radius:</label>
+      <div id='sidebarInputs'>
+        <div class="slidecontainer">
+          <label>Select mile radius for search:</label><span id='radiusVal'></span>
+          <input type="range" min="1" max="10" value="1" step='1' class="slider" id="radius"
+            onChange=redrawCircle(this.value)>
+        </div>
+
+        <div class="slidecontainer">
+          <label>Select # of max results to select from:</label><span id='limitVal'></span>
+          <input type="range" min="2" max="25" value="20" class="slider" id="limit">
+        </div>
+
+        <label>Select category of food:</label>
+        <input type="text" id='categories'>
+
+        <div id='checkboxes'>
+          <label>Select price range:</label>
+          <input type="checkbox" value='1' checked>$
+          <input type="checkbox" value='2' checked>$$
+          <input type="checkbox" value='3'>$$$
+          <input type="checkbox" value='4'>$$$$
+        </div>
+        <button onClick="search();">Search!</button>
       </div>
-      <div></div>
-      <div></div>
-
     </div>
-  </div>
-
-  </div>
-  </div>
   </div>
   <script src="/script.js"></script>
   <!-- jQuery -->
   <script src="https://code.jquery.com/jquery-3.2.1.js"></script>
   <!-- Google Maps -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBSVXQa4uY7jU8VmHIgJJfFr_JKA47DsRQ&callback=initMap" type="text/javascript"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBSVXQa4uY7jU8VmHIgJJfFr_JKA47DsRQ&callback=initMap"
+    type="text/javascript"></script>
+  <script>
+    function dlbBinding(element, data) {
+      this.data = data;
+      this.element = element;
+      element.value = data;
+      element.addEventListener("change", this, false);
+    }
+
+    dlbBinding.prototype.handleEvent = function (event) {
+      switch (event.type) {
+        case "change": this.change(this.element.value);
+      }
+    };
+
+    dlbBinding.prototype.change = function (value) {
+      this.data = value;
+      this.element.value = value;
+    };
+
+    var formRadius = new dlbBinding(document.getElementById('radius'), document.getElementById('radius').value);
+    var formLimit = new dlbBinding(document.getElementById('limit'), document.getElementById('limit').value);
+    var formCategories = new dlbBinding(document.getElementById('categories'), document.getElementById('categories').value);
+
+    var radiusSlider = document.getElementById("radius");
+    var radiusOutput = document.getElementById("radiusVal");
+    radiusOutput.innerHTML = " " + radiusSlider.value + " mile(s)"
+    radiusSlider.oninput = function () {
+      radiusOutput.innerHTML = " " + this.value + ' mile(s)';
+    }
+    var limitSlider = document.getElementById("limit");
+    var limitOutput = document.getElementById("limitVal");
+    limitOutput.innerHTML = " " + limitSlider.value
+    limitSlider.oninput = function () {
+      limitOutput.innerHTML = " " + this.value
+    }
+  </script>
 </body>
 
 </html>

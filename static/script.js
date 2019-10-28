@@ -1,17 +1,14 @@
+// search variables
 var newSearch = {
   radius: 0,
   lat: 0,
   long: 0,
-  categories: '',
-  limit: 20,
   price: '',
+  limit: 0,
+  categories: ''
 };
-// variable for radius to search in MILES
-// yelp && google maps takes it in meters only
-var searchRadiusInMiles = 1;
 
-// used for switch case for swapping MatCards
-var searched = false;
+// variable to hold coordinates
 var coordinates;
 
 // variable to hold marker for person
@@ -23,10 +20,13 @@ var googleMap;
 // google maps radius circle object
 var radiusCircle;
 
+// infowindow to show results
+var infowindow
+
 // Results from Yelp Search
 var YelpList = [];
 var businessList = [];
-var pick;
+var pickMarker;
 
 function getCoordinates() {
   return new Promise((resolve, reject) => {
@@ -39,8 +39,19 @@ function getCoordinates() {
   });
 }
 
+async function getRestaurants(obj) {
+  var response = await fetch('/api/yelpCall', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(obj)
+  })
+  return await response.json()
+}
+
 function initMap() {
-  getCoordinates().then( position => {
+  getCoordinates().then(position => {
     coordinates = position;
     // setting newSearch variable's lat & long values to co
     newSearch.lat = coordinates.coords.latitude;
@@ -62,7 +73,8 @@ function initMap() {
     // marker based off geolocate position
     const marker = new google.maps.Marker({
       map: map,
-      position: positionForMarker
+      position: positionForMarker,
+
     });
 
     // setting personMarker to google maps marker for current location
@@ -73,23 +85,45 @@ function initMap() {
     // create radius around person
     const circle = new google.maps.Circle({
       map: map,
-      radius: searchRadiusInMiles * 1609.34,
+      // radius: searchRadiusInMiles * 1609.34,
+      radius: 1609.34,
       fillColor: '#AA0000'
     });
     circle.bindTo('center', marker, 'position');
     radiusCircle = circle;
     map.fitBounds(circle.getBounds());
   })
-    .catch();
+    .catch(
+      console.log('error!')
+    );
+}
+
+// function redrawCircle(circleObj, newRadius, mapsObj) {
+function redrawCircle(newRadius) {
+  var radiusInMeters = parseInt(newRadius) * 1609.34;
+  radiusCircle.setRadius(radiusInMeters);
+  googleMap.fitBounds(radiusCircle.getBounds());
 }
 
 function search() {
-  // resetting switch case variable to display search MatCard
-  searched = true;
+  var prices = [];
+  var checksDiv = document.getElementById('checkboxes')
+  var checks = checksDiv.getElementsByTagName('INPUT');
+  for (let i = 0; i < checks.length; i++) {
+    if (checks[i].checked) {
+      prices.push(checks[i].value)
+    }
+  }
+  newSearch.categories = formCategories.data;
+  newSearch.limit = formLimit.data;
+  newSearch.price = prices.join(',');
 
   // resetting below variables
-  if (pick) {
-    pick.setMap(null);
+  if (pickMarker) {
+    pickMarker.setMap(null);
+  }
+  if (infowindow) {
+    infowindow.close()
   }
   if (YelpList) {
     YelpList = [];
@@ -99,35 +133,15 @@ function search() {
   }
 
   // to convert to meters
-  newSearch.radius = Math.floor(searchRadiusInMiles * 1609.34);
+  newSearch.radius = Math.floor(parseInt(formRadius.data) * 1609.34);
 
-  // set max meters radius to 40,000
-  if (newSearch.radius > 40000) {
-    newSearch.radius = 40000;
-  };
-
-  // adding price search options to newSearch.price string
-  if (price1 === true) {
-    newSearch.price += '1';
-  };
-  if (price2 === true && newSearch.price == '') {
-    newSearch.price += '2';
-  } else if (price2 === true) {
-    newSearch.price += ',2';
-  };
-  if (price3 === true && newSearch.price == '') {
-    newSearch.price += '3';
-  } else if (price3 === true) {
-    newSearch.price += ',3';
-  };
-  if (price4 === true && newSearch.price == '') {
-    newSearch.price += '4';
-  } else if (price4 === true) {
-    newSearch.price += ',4';
-  };
+  // // set max meters radius to 40,000
+  // if (newSearch.radius > 40000) {
+  //   newSearch.radius = 40000;
+  // };
 
   // calls Yelp API with newSearch object
-  _yelpService.getRestaurants(newSearch)
+  getRestaurants(newSearch)
     .then(response => {
       // push each rest. from response into YelpList array
       for (let i = 0; i < response.jsonBody.businesses.length; i++) {
@@ -140,24 +154,27 @@ function search() {
       // array to hold all markers for yelp listings
       let businessMarkers = [];
 
-      // for loop to loop through rests from API call, create a google maps marker, then push into businessMarkers array          
+      // loop through results from API call, create a google maps marker, then push into businessMarkers array          
       for (let i = 0; i < YelpList.length; i++) {
         const LatLng = { lat: YelpList[i].coordinates.latitude, lng: YelpList[i].coordinates.longitude };
 
         const restMarker = new google.maps.Marker({
           map: googleMap,
           position: LatLng,
-          icon: '../assets/static/images/yelpIcon.png',
+          icon: '/yelp_icon.png',
           animation: google.maps.Animation.BOUNCE
         });
 
         businessMarkers.push(restMarker);
       }
-
-      // setting selected rest. (always last in the array)
+      // setting selected result. (always last in the array)
       // b/c array is shuffled prior to pick, this pick will always be randomized
-      pick = businessMarkers[businessMarkers.length - 1];
-
+      pickMarker = businessMarkers[businessMarkers.length - 1];
+      var pickYelpResult = YelpList[YelpList.length - 1];
+      infowindow = new google.maps.InfoWindow({
+        content: infowindowContent(pickYelpResult.url, pickYelpResult.image_url, pickYelpResult.name, pickYelpResult.rating, pickYelpResult.location.address1, pickYelpResult.location.address2, pickYelpResult.location.city, pickYelpResult.location.state, pickYelpResult.location.zip_code),
+        maxWidth: 500
+      })
       // looping through businessMarkers, removing each one every .5 seconds after 3 second delay
       for (let j = 0; j < businessMarkers.length; j++) {
         // removes marker for everything before last business marker
@@ -169,22 +186,10 @@ function search() {
         } else {
           // sets animation to null for last rest.
           setTimeout(() => {
-            pick.setAnimation(null)
+            infowindow.open(googleMap, pickMarker)
+            pickMarker.setAnimation(null)
           }, 3000 + ((j - 1) * 500));
         }
-      }
-
-      // shuffle function
-      // function scoped to getRestaurants method
-      function shuffle(arr) {
-        let m = arr.length, t, i;
-        while (m) {
-          i = Math.floor(Math.random() * m--);
-          t = arr[m];
-          arr[m] = arr[i];
-          arr[i] = t;
-        }
-        return arr;
       }
     })
 
@@ -194,11 +199,29 @@ function search() {
     })
 };
 
-function pick_again() {
-  // resetting variables
-  searched = false;
-  newSearch.radius = 0;
-  newSearch.categories = '';
-  newSearch.limit = 20;
-  newSearch.price = '';
+// to format infowindow content
+function infowindowContent(url, picture, name, rating, address1, address2, city, state, zipcode) {
+  url = url ? url : 'yelp.com';
+  address2 = address2 ? address2 : '';
+  return '<div id="infowindow">' +
+    '<a href="' + url + '">'
+      + '<img id="infowindowImage" src="' + picture + '"></a>'
+        + '<div><p>' + name + '</p>'
+        + '<p> rating: ' + rating + '</p>'
+        + '<p>' + address1 + '</p>'
+        + '<p>' + address2 + '</p>'
+        + '<p>' + city + ', ' + state + ' ' + zipcode + '</p>'
+        + '</div></div>'
+}
+
+// shuffle function
+function shuffle(arr) {
+  let m = arr.length, t, i;
+  while (m) {
+    i = Math.floor(Math.random() * m--);
+    t = arr[m];
+    arr[m] = arr[i];
+    arr[i] = t;
+  }
+  return arr;
 }
